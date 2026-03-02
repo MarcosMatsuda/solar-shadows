@@ -65,14 +65,17 @@ export function calculateSolarPosition({
     Math.sin(lat) * Math.sin(delta) + Math.cos(lat) * Math.cos(delta) * Math.cos(H)
   );
 
-  // Azimute
-  const azimuth = Math.atan2(
+  // Azimute (corrigido para convenção Norte = 0°, sentido horário)
+  const azimuthRaw = Math.atan2(
     Math.sin(H),
     Math.cos(H) * Math.sin(lat) - Math.tan(delta) * Math.cos(lat)
   );
+  
+  // Converter para convenção astronômica: Norte = 0°, Leste = 90°, Sul = 180°, Oeste = 270°
+  const azimuth = normalizeAngle(radiansToDegrees(azimuthRaw) + 180);
 
   return {
-    azimuth: normalizeAngle(radiansToDegrees(azimuth)),
+    azimuth,
     elevation: radiansToDegrees(elevation),
   };
 }

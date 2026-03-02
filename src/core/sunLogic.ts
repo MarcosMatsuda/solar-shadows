@@ -120,11 +120,19 @@ export function solarPositionToShadow(
 
   // Calcular offset baseado no azimute (direção da sombra é oposta ao sol)
   const shadowAzimuth = (azimuth + 180) % 360;
+  
+  // Converter azimute astronômico para coordenadas CSS
+  // Azimute: Norte=0°, Leste=90°, Sul=180°, Oeste=270° (sentido horário)
+  // CSS: X+ = direita, X- = esquerda, Y+ = baixo, Y- = cima
+  // Nota: Invertemos X porque o mapa está "de cima", não "de frente"
   const azimuthRad = degreesToRadians(shadowAzimuth);
 
   // Offset aumenta quando o sol está baixo
   const offsetMagnitude = maxOffset * shadowIntensity;
-  const offsetX = Math.sin(azimuthRad) * offsetMagnitude;
+  
+  // Conversão: Norte(0°)→Y-, Leste(90°)→X-, Sul(180°)→Y+, Oeste(270°)→X+
+  // Invertemos X para corresponder à visualização "de cima" do mapa
+  const offsetX = -Math.sin(azimuthRad) * offsetMagnitude;
   const offsetY = -Math.cos(azimuthRad) * offsetMagnitude;
 
   // Blur aumenta quando o sol está baixo (sombras mais difusas)

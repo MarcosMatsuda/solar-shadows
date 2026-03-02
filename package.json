@@ -9,9 +9,9 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "react-native": "./dist/index.js",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "react-native": "./dist/index.js"
+      "require": "./dist/index.js"
     }
   },
   "files": [

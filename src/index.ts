@@ -1,4 +1,7 @@
 // Solar Shadows - Cálculo de sombras baseado na posição real do sol
-// TODO: Implementar funcionalidades
 
-export {};
+// Core solar calculation logic
+export * from './core/sunLogic';
+
+// React components
+export * from './react/Shadow';

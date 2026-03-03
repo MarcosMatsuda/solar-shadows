@@ -1,6 +1,6 @@
 {
   "name": "solar-shadows",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Calcule sombras baseadas na posição real do sol para React e React Native",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

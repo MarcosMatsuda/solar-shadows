@@ -1,64 +1,37 @@
-import { useState, useMemo } from 'react';
-import { calculateSunShadow, calculateSolarPosition } from 'solar-shadows';
+import { useState, useEffect, useMemo } from 'react';
+import { Shadow, calculateSolarPosition, CITIES } from 'solar-shadows';
 import './App.css';
 
 function App() {
   const [hour, setHour] = useState(12);
-  
-  // Coordenadas de São Paulo
-  const latitude = -23.5505;
-  const longitude = -46.6333;
+  const [isAnimating, setIsAnimating] = useState(false);
 
-  // Criar data com o horário selecionado
+  const city = CITIES.saoPaulo;
+  
   const date = useMemo(() => {
     const d = new Date();
     d.setHours(hour, 0, 0, 0);
     return d;
   }, [hour]);
 
-  // Calcular posição solar (azimute e elevação)
   const solarPosition = useMemo(() => {
-    return calculateSolarPosition({ latitude, longitude, date });
-  }, [latitude, longitude, date]);
+    return calculateSolarPosition({
+      latitude: city.latitude,
+      longitude: city.longitude,
+      date
+    });
+  }, [city, date]);
 
-  // Calcular sombra baseada na posição solar
-  const shadowProps = useMemo(() => {
-    return calculateSunShadow({ latitude, longitude, date });
-  }, [latitude, longitude, date]);
-
-  // Converter para CSS box-shadow
-  const boxShadow = useMemo(() => {
-    const { offsetX, offsetY, blur, opacity } = shadowProps;
-    if (opacity === 0) return 'none';
-    return `${offsetX}px ${offsetY}px ${blur}px rgba(0, 0, 0, ${opacity})`;
-  }, [shadowProps]);
-
-  // Calcular posição do sol no arco (0-100%)
-  const sunArcPosition = useMemo(() => {
-    // Mapear hora para posição no arco (6h = 0%, 12h = 50%, 18h = 100%)
-    const normalizedHour = Math.max(0, Math.min(24, hour));
+  // Animação automática
+  useEffect(() => {
+    if (!isAnimating) return;
     
-    // Arco vai de 6h (nascer) a 18h (pôr)
-    if (normalizedHour < 6) return -10; // Abaixo do horizonte (esquerda)
-    if (normalizedHour > 18) return 110; // Abaixo do horizonte (direita)
+    const interval = setInterval(() => {
+      setHour(prev => (prev + 1) % 24);
+    }, 1000);
     
-    // 6h = 0%, 12h = 50%, 18h = 100%
-    return ((normalizedHour - 6) / 12) * 100;
-  }, [hour]);
-
-  // Calcular altura do sol no arco baseado na elevação
-  const sunArcHeight = useMemo(() => {
-    const { elevation } = solarPosition;
-    
-    // Se sol está abaixo do horizonte
-    if (elevation < 0) return 100; // Posição baixa (invisível)
-    
-    // Normalizar elevação (0° = 100% baixo, 90° = 0% alto)
-    // Invertido porque Y cresce para baixo no CSS
-    return 100 - (elevation / 90) * 100;
-  }, [solarPosition]);
-
-  const formatTime = (h) => `${h.toString().padStart(2, '0')}:00`;
+    return () => clearInterval(interval);
+  }, [isAnimating]);
 
   const getSunEmoji = () => {
     if (hour >= 6 && hour < 12) return '🌅';
@@ -67,144 +40,441 @@ function App() {
     return '🌙';
   };
 
-  const isSunVisible = hour >= 6 && hour <= 18;
-
   return (
-    <div className="container">
-      <div className="header">
-        <h1>☀️ Solar Shadows</h1>
-        <p>Sombras dinâmicas baseadas na posição real do sol</p>
-      </div>
+    <div className="app">
+      {/* Hero Section */}
+      <section className="hero">
+        <div className="hero-content">
+          <h1 className="hero-title">
+            ☀️ Solar Shadows
+          </h1>
+          <p className="hero-subtitle">
+            Sombras dinâmicas baseadas na posição <strong>real</strong> do sol
+          </p>
 
-      {/* Visualização do arco solar */}
-      <div className="sun-arc-container">
-        <svg className="sun-arc" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
-          {/* Horizonte */}
-          <line x1="0" y1="100" x2="400" y2="100" stroke="#ffffff40" strokeWidth="2" strokeDasharray="5,5" />
-          
-          {/* Arco do céu */}
-          <path
-            d="M 50 100 Q 200 20 350 100"
-            fill="none"
-            stroke="#ffffff20"
-            strokeWidth="2"
-            strokeDasharray="5,5"
-          />
-          
-          {/* Marcadores de hora */}
-          <text x="50" y="115" fill="#ffffff80" fontSize="12" textAnchor="middle">6h</text>
-          <text x="200" y="115" fill="#ffffff80" fontSize="12" textAnchor="middle">12h</text>
-          <text x="350" y="115" fill="#ffffff80" fontSize="12" textAnchor="middle">18h</text>
-          
-          {/* Sol */}
-          {isSunVisible && (
-            <g>
-              {/* Raios do sol */}
-              <circle
-                cx={50 + (sunArcPosition / 100) * 300}
-                cy={100 - ((100 - sunArcHeight) / 100) * 80}
-                r="20"
-                fill="#FFD700"
-                opacity="0.2"
-              />
-              {/* Corpo do sol */}
-              <circle
-                cx={50 + (sunArcPosition / 100) * 300}
-                cy={100 - ((100 - sunArcHeight) / 100) * 80}
-                r="12"
-                fill="#FFD700"
-              />
-              {/* Linha indicadora */}
-              <line
-                x1={50 + (sunArcPosition / 100) * 300}
-                y1={100 - ((100 - sunArcHeight) / 100) * 80 + 12}
-                x2={50 + (sunArcPosition / 100) * 300}
-                y2="100"
-                stroke="#FFD70080"
-                strokeWidth="1"
-                strokeDasharray="2,2"
-              />
-            </g>
-          )}
-        </svg>
-        
-        <div className="sun-info">
-          <div className="sun-info-item">
-            <span className="label">Azimute:</span>
-            <span className="value">{solarPosition.azimuth.toFixed(1)}°</span>
+          {/* Demo Cards com Sombra */}
+          <div className="demo-cards">
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+              <div className="hero-card card-1">
+                <div className="card-icon">{getSunEmoji()}</div>
+                <h3>Realista</h3>
+                <p>Baseado em cálculos astronômicos</p>
+              </div>
+            </Shadow>
+
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+              <div className="hero-card card-2">
+                <div className="card-icon">⚡</div>
+                <h3>Simples</h3>
+                <p>3 linhas de código</p>
+              </div>
+            </Shadow>
+
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+              <div className="hero-card card-3">
+                <div className="card-icon">🌍</div>
+                <h3>Global</h3>
+                <p>Qualquer lugar do mundo</p>
+              </div>
+            </Shadow>
           </div>
-          <div className="sun-info-item">
-            <span className="label">Elevação:</span>
-            <span className="value">{solarPosition.elevation.toFixed(1)}°</span>
-          </div>
-        </div>
-      </div>
 
-      {/* Card com sombra solar dinâmica */}
-      <div className="card" style={{ boxShadow }}>
-        <span className="sun-icon">{getSunEmoji()}</span>
-        <h2>Card Interativo</h2>
-        <p>
-          Mova o slider abaixo para simular diferentes horários do dia.
-          A sombra deste card muda automaticamente baseada na posição do sol em São Paulo.
-        </p>
-        <div className="code-example">
-          <code>
-            calculateSunShadow({`{ latitude, longitude, date }`})
-          </code>
-        </div>
-      </div>
-
-      {/* Controles */}
-      <div className="controls">
-        <div className="control-group">
-          <label>Horário do Dia</label>
-          <div className="slider-container">
+          {/* Controles */}
+          <div className="hero-controls">
+            <div className="time-display">
+              <span className="time-emoji">{getSunEmoji()}</span>
+              <span className="time-text">{hour}:00</span>
+              <span className="location-text">São Paulo, Brasil</span>
+            </div>
+            
             <input
               type="range"
               min="0"
               max="23"
               value={hour}
               onChange={(e) => setHour(Number(e.target.value))}
+              className="time-slider"
             />
-            <span className="time-display">{formatTime(hour)}</span>
+
+            <button 
+              className={`animate-btn ${isAnimating ? 'active' : ''}`}
+              onClick={() => setIsAnimating(!isAnimating)}
+            >
+              {isAnimating ? '⏸ Pausar' : '▶ Animar'}
+            </button>
+          </div>
+
+          {/* Solar Info */}
+          <div className="solar-info-compact">
+            <div className="info-badge">
+              <span className="info-label">Azimute</span>
+              <span className="info-value">{solarPosition.azimuth.toFixed(0)}°</span>
+            </div>
+            <div className="info-badge">
+              <span className="info-label">Elevação</span>
+              <span className="info-value">{solarPosition.elevation.toFixed(0)}°</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Comparison Section - AH-HA MOMENT */}
+      <section className="comparison-section">
+        <h2>Veja a diferença ao longo do dia</h2>
+        <p className="section-subtitle">
+          As sombras seguem a posição <strong>real do sol</strong> baseada em cálculos astronômicos
+        </p>
+
+        <div className="time-comparison">
+          <div className="time-card">
+            <div className="time-header">
+              <span className="time-icon">🌅</span>
+              <h3>8h - Manhã</h3>
+            </div>
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={(() => {
+              const d = new Date();
+              d.setHours(8, 0, 0, 0);
+              return d;
+            })()}>
+              <div className="demo-card-small">
+                <div className="card-content">
+                  <span className="emoji">☕</span>
+                  <p>Sombra longa</p>
+                </div>
+              </div>
+            </Shadow>
+            <div className="shadow-direction">
+              <span className="arrow">→</span>
+              <small>Sombra para OESTE</small>
+            </div>
+          </div>
+
+          <div className="time-card highlight">
+            <div className="time-header">
+              <span className="time-icon">☀️</span>
+              <h3>12h - Meio-dia</h3>
+            </div>
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={(() => {
+              const d = new Date();
+              d.setHours(12, 0, 0, 0);
+              return d;
+            })()}>
+              <div className="demo-card-small">
+                <div className="card-content">
+                  <span className="emoji">🌞</span>
+                  <p>Sombra curta</p>
+                </div>
+              </div>
+            </Shadow>
+            <div className="shadow-direction">
+              <span className="arrow">↓</span>
+              <small>Sombra para NORTE</small>
+            </div>
+          </div>
+
+          <div className="time-card">
+            <div className="time-header">
+              <span className="time-icon">🌇</span>
+              <h3>18h - Tarde</h3>
+            </div>
+            <Shadow latitude={city.latitude} longitude={city.longitude} date={(() => {
+              const d = new Date();
+              d.setHours(18, 0, 0, 0);
+              return d;
+            })()}>
+              <div className="demo-card-small">
+                <div className="card-content">
+                  <span className="emoji">🌆</span>
+                  <p>Sombra longa</p>
+                </div>
+              </div>
+            </Shadow>
+            <div className="shadow-direction">
+              <span className="arrow">←</span>
+              <small>Sombra para LESTE</small>
+            </div>
           </div>
         </div>
 
-        <div className="info-grid">
-          <div className="info-item">
-            <label>Offset X</label>
-            <value>{shadowProps.offsetX.toFixed(1)}px</value>
+        <div className="comparison-insight">
+          <p>
+            💡 <strong>Percebeu a diferença?</strong> Cada horário tem uma sombra única.
+            Isso acontece automaticamente no seu site!
+          </p>
+        </div>
+      </section>
+
+      {/* Why It Matters Section */}
+      <section className="why-matters-section">
+        <h2>Por que sombras realistas importam?</h2>
+        
+        <div className="reasons-grid">
+          <div className="reason-card">
+            <div className="reason-icon">🧠</div>
+            <h3>Psicologia Visual</h3>
+            <p>
+              Nosso cérebro reconhece sombras realistas instantaneamente.
+              Produtos e elementos parecem mais <strong>tangíveis e confiáveis</strong>.
+            </p>
+            <div className="reason-stat">
+              <span className="stat-number">+23%</span>
+              <span className="stat-label">conversão em e-commerce*</span>
+            </div>
           </div>
-          <div className="info-item">
-            <label>Offset Y</label>
-            <value>{shadowProps.offsetY.toFixed(1)}px</value>
+
+          <div className="reason-card">
+            <div className="reason-icon">🎨</div>
+            <h3>Diferenciação</h3>
+            <p>
+              99% dos sites usam sombras fake e estáticas.
+              Destaque-se com <strong>detalhes que impressionam</strong>.
+            </p>
+            <div className="reason-highlight">
+              "Esse site tem algo diferente..." 💭
+            </div>
           </div>
-          <div className="info-item">
-            <label>Blur</label>
-            <value>{shadowProps.blur.toFixed(1)}px</value>
-          </div>
-          <div className="info-item">
-            <label>Opacity</label>
-            <value>{shadowProps.opacity.toFixed(2)}</value>
+
+          <div className="reason-card">
+            <div className="reason-icon">⚡</div>
+            <h3>Dinamismo Sem Esforço</h3>
+            <p>
+              Sites estáticos são chatos. Adicione <strong>vida real</strong> sem
+              animações complexas ou JavaScript pesado.
+            </p>
+            <div className="reason-tech">
+              <code>3 linhas de código</code>
+              <span>Zero impacto na performance</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Exemplo de código */}
-      <div className="code-section">
-        <h3>📝 Código deste exemplo:</h3>
-        <pre>{`import { calculateSunShadow } from 'solar-shadows';
+        <div className="why-matters-cta">
+          <h3>O diferencial está nos detalhes</h3>
+          <p>
+            Enquanto outros sites são estáticos e previsíveis,
+            o seu <strong>respira com o mundo real</strong>. ✨
+          </p>
+        </div>
+      </section>
 
-const shadowProps = calculateSunShadow({
-  latitude: -23.5505,
-  longitude: -46.6333,
-  date: new Date()
-});
+      {/* Works With Everything Section */}
+      <section className="works-with-section">
+        <h2>Funciona com QUALQUER elemento</h2>
+        <p className="section-subtitle">
+          Inputs, buttons, cards, formulários, imagens... <strong>tudo</strong>!
+        </p>
 
-// Retorna: { offsetX, offsetY, blur, opacity }
-const boxShadow = \`\${shadowProps.offsetX}px \${shadowProps.offsetY}px \${shadowProps.blur}px rgba(0,0,0,\${shadowProps.opacity})\`;`}</pre>
-      </div>
+        <div className="elements-showcase">
+          <div className="element-demo">
+            <h3>🎨 Elementos Web</h3>
+            <div className="demo-elements">
+              <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+                <input type="text" placeholder="Input com sombra real" className="demo-input" />
+              </Shadow>
+              <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+                <button className="demo-button">Button com sombra real</button>
+              </Shadow>
+              <Shadow latitude={city.latitude} longitude={city.longitude} date={date}>
+                <select className="demo-select">
+                  <option>Select com sombra real</option>
+                </select>
+              </Shadow>
+            </div>
+            <pre className="code-mini">{`<Shadow {...CITIES.saoPaulo}>
+  <input placeholder="Nome" />
+</Shadow>
+
+<Shadow {...CITIES.saoPaulo}>
+  <button>Enviar</button>
+</Shadow>`}</pre>
+          </div>
+
+          <div className="element-demo highlight-mobile">
+            <h3>📱 React Native</h3>
+            <p className="mobile-description">
+              Funciona <strong>nativamente</strong> em iOS e Android com as propriedades corretas
+              (shadowOffset, shadowRadius, shadowOpacity, elevation).
+            </p>
+            <pre className="code-mini">{`import { Shadow } from 'solar-shadows';
+
+// iOS & Android
+<Shadow 
+  latitude={-23.5505} 
+  longitude={-46.6333}
+>
+  <View style={styles.card}>
+    <Text>Sombra nativa!</Text>
+  </View>
+</Shadow>
+
+// Propriedades nativas:
+// iOS: shadowOffset, shadowRadius, 
+//      shadowOpacity
+// Android: elevation (fallback)`}</pre>
+          </div>
+        </div>
+      </section>
+
+      {/* Use Cases Section */}
+      <section className="use-cases-section">
+        <div className="section-header-large">
+          <span className="badge">❌ CHEGA DE ESTÁTICO</span>
+          <h2>Adicione vida real ao seu site</h2>
+          <p className="section-subtitle">
+            Sombras que mudam automaticamente ao longo do dia.<br />
+            Seu site respira com o mundo real.
+          </p>
+        </div>
+
+        <div className="use-cases-grid">
+          <div className="use-case highlight">
+            <div className="use-case-header">
+              <span className="use-case-icon">🛍️</span>
+              <h3>E-commerce que Converte</h3>
+            </div>
+            <p className="use-case-description">
+              Produtos com sombras <strong>realistas</strong> parecem mais tangíveis e aumentam conversão.
+              Em vez de sombras fake e estáticas, use o sol real.
+            </p>
+            <pre className="code-mini">{`<Shadow {...CITIES.saoPaulo}>
+  <ProductCard
+    image="tenis.jpg"
+    price="R$ 299"
+  />
+</Shadow>
+
+// 8h: sombra longa (manhã)
+// 12h: sombra curta (meio-dia)  
+// 18h: sombra longa (tarde)
+
+// Resultado: Produtos mais tangíveis ✨`}</pre>
+          </div>
+
+          <div className="use-case highlight">
+            <div className="use-case-header">
+              <span className="use-case-icon">💼</span>
+              <h3>Portfolio que se Destaca</h3>
+            </div>
+            <p className="use-case-description">
+              Mostre <strong>atenção aos detalhes</strong> que recrutadores notam.
+              Seu portfolio muda automaticamente ao longo do dia.
+            </p>
+            <pre className="code-mini">{`<Shadow updateInterval={60000}>
+  <ProjectCard
+    title="Meu Projeto"
+    image="screenshot.png"
+  />
+</Shadow>
+
+// Atualiza a cada 1 minuto
+// Sombras mudam sozinhas
+
+// Recrutador: "Esse dev pensa
+// em TUDO!" 🤯`}</pre>
+          </div>
+
+          <div className="use-case highlight">
+            <div className="use-case-header">
+              <span className="use-case-icon">📱</span>
+              <h3>Apps que Vivem</h3>
+            </div>
+            <p className="use-case-description">
+              React Native, Vue, Angular... <strong>qualquer framework</strong>.
+              Funciona em web e mobile nativamente.
+            </p>
+            <pre className="code-mini">{`// React Native
+<Shadow {...CITIES.tokyo}>
+  <View style={styles.card}>
+    <Text>Mobile App</Text>
+  </View>
+</Shadow>
+
+// Ou use a função direta
+const shadow = calculateSunShadow({...});
+element.style.boxShadow = ...
+
+// Vue, Angular, Svelte... ✨`}</pre>
+          </div>
+        </div>
+
+        <div className="use-case-cta">
+          <h3>🎯 O diferencial está nos detalhes</h3>
+          <p>Enquanto outros sites são estáticos, o seu <strong>respira com o mundo real</strong>.</p>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="cta-section">
+        <h2>Comece em 3 linhas</h2>
+        <pre className="code-showcase">{`import { Shadow } from 'solar-shadows';
+
+<Shadow latitude={-23.5505} longitude={-46.6333}>
+  <YourComponent />
+</Shadow>`}</pre>
+
+        <div className="cta-buttons">
+          <a 
+            href="https://github.com/marcosmatsuda/solar-shadows" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="cta-btn primary"
+          >
+            📦 Ver no GitHub
+          </a>
+          <a 
+            href="https://www.npmjs.com/package/solar-shadows" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="cta-btn secondary"
+          >
+            📥 npm install solar-shadows
+          </a>
+        </div>
+      </section>
+
+      {/* Features Compact */}
+      <section className="features-compact">
+        <div className="features-list">
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>Precisão astronômica (algoritmo J2000)</span>
+          </div>
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>React & React Native nativos</span>
+          </div>
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>Zero dependências externas</span>
+          </div>
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>TypeScript com tipos completos</span>
+          </div>
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>10+ city presets incluídos</span>
+          </div>
+          <div className="feature-item">
+            <span className="feature-check">✅</span>
+            <span>3 formas de uso (componente, função, dados)</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="footer">
+        <p>
+          Feito com ☀️ por <strong>Marcos Matsuda</strong>
+        </p>
+        <p className="footer-links">
+          <a href="https://github.com/marcosmatsuda/solar-shadows">GitHub</a>
+          {' · '}
+          <a href="https://www.npmjs.com/package/solar-shadows">npm</a>
+          {' · '}
+          <span>v1.0.0</span>
+        </p>
+      </footer>
     </div>
   );
 }

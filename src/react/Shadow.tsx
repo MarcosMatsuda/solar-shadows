@@ -8,6 +8,7 @@ export interface ShadowProps {
   latitude: number;
   longitude: number;
   children: React.ReactElement;
+  date?: Date;
   updateInterval?: number;
   maxOffset?: number;
   maxBlur?: number;
@@ -23,6 +24,7 @@ export const Shadow = ({
   latitude,
   longitude,
   children,
+  date,
   updateInterval = 60000,
   maxOffset = 50,
   maxBlur = 30,
@@ -36,14 +38,17 @@ export const Shadow = ({
   const [currentDate, setCurrentDate] = useState(() => new Date());
 
   useEffect(() => {
-    if (updateInterval <= 0) return;
+    if (updateInterval <= 0 || date) return; // Don't auto-update if date is provided
 
     const interval = setInterval(() => {
       setCurrentDate(new Date());
     }, updateInterval);
 
     return () => clearInterval(interval);
-  }, [updateInterval]);
+  }, [updateInterval, date]);
+
+  // Use external date if provided, otherwise use internal currentDate
+  const effectiveDate = date || currentDate;
 
   const shadowProperties = useMemo(
     () =>
@@ -51,7 +56,7 @@ export const Shadow = ({
         {
           latitude,
           longitude,
-          date: currentDate,
+          date: effectiveDate,
         },
         {
           maxOffset,
@@ -60,7 +65,7 @@ export const Shadow = ({
           maxOpacity,
         }
       ),
-    [latitude, longitude, currentDate, maxOffset, maxBlur, minOpacity, maxOpacity]
+    [latitude, longitude, effectiveDate, maxOffset, maxBlur, minOpacity, maxOpacity]
   );
 
   const boxShadow = useMemo(

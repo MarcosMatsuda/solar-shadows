@@ -1,0 +1,45 @@
+name: Deploy Example to GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'example/**'
+      - 'src/**'
+      - '.github/workflows/deploy-example.yml'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: example/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: ./example
+        run: npm ci
+      
+      - name: Build
+        working-directory: ./example
+        run: npm run build
+      
+      - name: Deploy to GitHub Pages
+        working-directory: ./example
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          npm run deploy
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
